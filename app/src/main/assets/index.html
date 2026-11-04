@@ -147,12 +147,34 @@ function sendMessage(){
 
  let language=document.getElementById("language").value;
  try{
-  let d=JSON.parse(Android.chat(message,language));
-  lastAnswer=d.reply;
-  document.getElementById("answer").textContent=d.reply;
-  if(!d.needsKey)setTimeout(speakAnswer,300);
+  if(window.Android && typeof Android.chat==="function"){
+   let d=JSON.parse(Android.chat(message,language));
+   lastAnswer=d.reply;
+   document.getElementById("answer").textContent=d.reply;
+   if(!d.needsKey)setTimeout(speakAnswer,300);
+  }else{
+   document.getElementById("answer").textContent="JARVIS जवाब तैयार कर रहा है...";
+   fetch("/api/chat",{
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({message:message,language:language})
+   })
+   .then(async r=>{
+    let d=await r.json();
+    if(!r.ok)throw new Error(d.reply||"AI सर्वर में समस्या");
+    return d;
+   })
+   .then(d=>{
+    lastAnswer=d.reply;
+    document.getElementById("answer").textContent=lastAnswer;
+    speakAnswer();
+   })
+   .catch(e=>{
+    document.getElementById("answer").textContent=e.message;
+   });
+  }
  }catch(e){
-  document.getElementById("answer").textContent="ऐप में समस्या आई।";
+  document.getElementById("answer").textContent="ऐप में समस्या आई: "+e.message;
  }
 }
 
@@ -160,7 +182,14 @@ function speakAnswer(){
  if(!lastAnswer)return;
  let language=document.getElementById("language").value;
  let choice=document.getElementById("voiceChoice").value;
- Android.speak(lastAnswer, language, choice);
+ if(window.Android && typeof Android.speak==="function"){
+  Android.speak(lastAnswer,language,choice);
+ }else if("speechSynthesis" in window){
+  window.speechSynthesis.cancel();
+  let utterance=new SpeechSynthesisUtterance(lastAnswer);
+  utterance.lang=language;
+  window.speechSynthesis.speak(utterance);
+ }
 }
 
 function startMic(){
