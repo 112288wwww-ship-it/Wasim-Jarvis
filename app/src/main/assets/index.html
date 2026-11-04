@@ -1,0 +1,157 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>JARVIS</title>
+<style>
+*{box-sizing:border-box}
+body{
+ background:radial-gradient(circle at top,#123b25,#020b08 65%);
+ color:#fff;font-family:Arial,sans-serif;text-align:center;
+ padding:15px;margin:0;min-height:100vh
+}
+h1{color:#35ff8a;font-size:34px;text-shadow:0 0 18px #00ff77}
+h2,h3{color:#42ff9b}
+.panel{
+ background:linear-gradient(145deg,#10291d,#030d09);
+ border:1px solid #19e879;
+ box-shadow:0 0 14px #00c96b;
+ padding:16px;border-radius:18px;margin:14px auto;
+ max-width:550px
+}
+input,select,button{
+ box-sizing:border-box;width:100%;padding:14px;margin:7px 0;
+ border:1px solid #22e878;border-radius:12px;font-size:16px
+}
+input,select{background:#061810;color:white}
+button{
+ background:linear-gradient(135deg,#087b42,#00d878);
+ color:white;font-weight:bold;cursor:pointer;
+ box-shadow:0 0 10px #00c96b
+}
+button:active{transform:scale(.98)}
+#answer{white-space:pre-wrap;line-height:1.7}
+.brand{color:#ffd95a;font-size:22px;font-weight:bold;letter-spacing:2px}
+.tagline{color:#7dffb4;font-size:14px}
+@media(max-width:400px){h1{font-size:27px}.panel{padding:12px}}
+</style>
+</head>
+<body>
+<h1>🇵🇰 JARVIS AI</h1>
+<div class="brand">👑 WASIM KHAN 👑</div>
+<p class="tagline">POWERED BY AI • FOR A SMARTER PAKISTAN</p>
+<div class="panel">
+<h3>Groq API Key</h3>
+<input id="apiKey" type="password" placeholder="अपनी Groq API Key यहाँ डालें">
+<button onclick="saveKey()">SAVE API KEY</button>
+<p id="keyStatus">API Key सेव करें</p>
+</div>
+<div class="panel">
+<h3>JARVIS Online</h3>
+<select id="language">
+<option value="ur-PK">اردو</option>
+<option value="hi-IN">हिन्दी</option>
+<option value="en-US">English</option>
+</select>
+<select id="voiceChoice">
+<option value="default">Default Voice</option>
+<option value="male">Male Voice</option>
+<option value="female">Female Voice</option>
+</select>
+</div>
+<div class="panel">
+<input id="message" placeholder="اپنا سوال لکھیں...">
+<button onclick="sendMessage()">SEND</button>
+<button onclick="startMic()">🎤 MIC</button>
+<button onclick="speakAnswer()">🔊 SPEAK</button>
+</div>
+<div class="panel">
+<h3>JARVIS کا جواب</h3>
+<div id="answer">میں تیار ہوں۔</div>
+</div>
+<div class="panel">
+<button onclick="quick('time')">TIME</button>
+<button onclick="quick('date')">DATE</button>
+<button onclick="quick('google')">GOOGLE</button>
+<button onclick="quick('youtube')">YOUTUBE</button>
+<button onclick="showHistory()">CHAT HISTORY</button>
+</div>
+<script>
+let lastAnswer = "";
+
+function quick(x){
+ document.getElementById("message").value=x;
+ sendMessage();
+}
+
+function saveKey(){
+ let key=document.getElementById("apiKey").value.trim();
+ if(!key){alert("पहले API Key डालें");return;}
+ let ok=Android.saveApiKey(key);
+ document.getElementById("keyStatus").textContent=ok?"API Key सेव हो गई।":"सेव नहीं हुई।";
+ document.getElementById("apiKey").value="";
+}
+
+function sendMessage(){
+ let message=document.getElementById("message").value.trim();
+ if(!message)return;
+ let language=document.getElementById("language").value;
+ try{
+  let d=JSON.parse(Android.chat(message,language));
+  lastAnswer=d.reply;
+  document.getElementById("answer").textContent=d.reply;
+  if(!d.needsKey)setTimeout(speakAnswer,300);
+ }catch(e){
+  document.getElementById("answer").textContent="ऐप में समस्या आई।";
+ }
+}
+
+function speakAnswer(){
+ if(!lastAnswer)return;
+ speechSynthesis.cancel();
+ let v=new SpeechSynthesisUtterance(lastAnswer);
+ v.lang=document.getElementById("language").value;
+ let choice=document.getElementById("voiceChoice").value;
+ let voices=speechSynthesis.getVoices().filter(x=>x.lang.toLowerCase().startsWith(v.lang.slice(0,2).toLowerCase()));
+ let pattern=choice==="female" ? /female|woman|zira|samantha|susan|heera/i : /male|man|david|mark|daniel|ravi/i;
+ if(choice!=="default"){
+  let found=voices.find(x=>pattern.test(x.name));
+  if(found)v.voice=found;
+ }
+ speechSynthesis.speak(v);
+}
+
+function startMic(){
+ let R=window.SpeechRecognition||window.webkitSpeechRecognition;
+ if(!R){
+  document.getElementById("answer").textContent="مائیک دستیاب نہیں۔";
+  return;
+ }
+ let rec=new R();
+ rec.lang=document.getElementById("language").value;
+ rec.onresult=e=>{
+  document.getElementById("message").value=e.results[0][0].transcript;
+  sendMessage();
+ };
+ rec.start();
+}
+
+function showHistory(){
+ try{
+  let d=JSON.parse(Android.history());
+  document.getElementById("answer").textContent=d.length
+   ?d.slice().reverse().map(x=>x.time+"\\nआप: "+x.question+"\\nJARVIS: "+x.answer).join("\\n\\n")
+   :"अभी कोई History नहीं है।";
+ }catch(e){
+  document.getElementById("answer").textContent="History नहीं खुली।";
+ }
+}
+
+document.getElementById("message").addEventListener("keydown",e=>{
+ if(e.key==="Enter")sendMessage();
+});
+</script>
+</body>
+</html>
