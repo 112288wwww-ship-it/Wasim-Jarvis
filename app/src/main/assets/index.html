@@ -97,6 +97,30 @@ function saveKey(){
 function sendMessage(){
  let message=document.getElementById("message").value.trim();
  if(!message)return;
+
+ let command=message.toLowerCase();
+ let apps=[
+  {words:["whatsapp","व्हाट्सएप","व्हाट्सऐप"],name:"whatsapp"},
+  {words:["youtube","यूट्यूब"],name:"youtube"},
+  {words:["chrome","क्रोम"],name:"chrome"},
+  {words:["camera","कैमरा"],name:"camera"},
+  {words:["settings","setting","सेटिंग"],name:"settings"}
+ ];
+
+ for(let app of apps){
+  if(app.words.some(word=>command.includes(word))){
+   try{
+    lastAnswer=Android.openApp(app.name);
+    document.getElementById("answer").textContent=lastAnswer;
+    Android.speak(lastAnswer,document.getElementById("language").value,"default");
+   }catch(e){
+    document.getElementById("answer").textContent="ऐप खोलने में समस्या आई।";
+   }
+   document.getElementById("message").value="";
+   return;
+  }
+ }
+
  let language=document.getElementById("language").value;
  try{
   let d=JSON.parse(Android.chat(message,language));

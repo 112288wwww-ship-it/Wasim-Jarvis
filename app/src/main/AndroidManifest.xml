@@ -1,4 +1,9 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <queries>
+        <package android:name="com.whatsapp"/>
+        <package android:name="com.google.android.youtube"/>
+        <package android:name="com.android.chrome"/>
+    </queries>
     <uses-permission android:name="android.permission.INTERNET"/>
     <application
         android:theme="@android:style/Theme.Material.Light.NoActionBar"

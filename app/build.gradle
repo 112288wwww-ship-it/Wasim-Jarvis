@@ -5,6 +5,7 @@ plugins {
 android {
     namespace 'com.wasim.jarvis'
     compileSdk 35
+    buildToolsVersion "35.0.0"
 
     defaultConfig {
         applicationId 'com.wasim.jarvis'

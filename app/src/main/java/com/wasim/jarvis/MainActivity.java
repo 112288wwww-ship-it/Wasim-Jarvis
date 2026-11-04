@@ -268,6 +268,46 @@ public class MainActivity extends Activity {
         }
 
         @JavascriptInterface
+        public String openApp(String appName) {
+            if (appName == null) return "ऐप का नाम नहीं मिला।";
+            String name = appName.toLowerCase(Locale.ROOT).trim();
+            String packageName;
+
+            if (name.contains("whatsapp")) packageName = "com.whatsapp";
+            else if (name.contains("youtube")) packageName = "com.google.android.youtube";
+            else if (name.contains("chrome")) packageName = "com.android.chrome";
+            else if (name.contains("camera")) {
+                Intent cameraIntent = new Intent(android.provider.MediaStore.INTENT_ACTION_STILL_IMAGE_CAMERA);
+                try {
+                    startActivity(cameraIntent);
+                    return "कैमरा खोल रहा हूँ।";
+                } catch (Exception e) {
+                    return "कैमरा नहीं खुल सका।";
+                }
+            }
+            else if (name.contains("setting")) {
+                Intent settingsIntent = new Intent(android.provider.Settings.ACTION_SETTINGS);
+                settingsIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                try {
+                    startActivity(settingsIntent);
+                    return "सेटिंग्स खोल रहा हूँ।";
+                } catch (Exception e) {
+                    return "सेटिंग्स नहीं खुल सकीं।";
+                }
+            } else return "यह ऐप अभी कमांड सूची में नहीं है।";
+
+            try {
+                Intent launch = getPackageManager().getLaunchIntentForPackage(packageName);
+                if (launch == null) return "यह ऐप मोबाइल में नहीं मिला।";
+                launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                startActivity(launch);
+                return "ऐप खोल रहा हूँ।";
+            } catch (Exception e) {
+                return "ऐप नहीं खुल सका।";
+            }
+        }
+
+        @JavascriptInterface
         public void speak(String text, String language, String choice) {
             speakText(text, language, choice);
         }
