@@ -1,83 +1,107 @@
-
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>JARVIS</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>WASIM KHAN JARVIS AI</title>
 <style>
 *{box-sizing:border-box}
-body{
- background:radial-gradient(circle at top,#123b25,#020b08 65%);
- color:#fff;font-family:Arial,sans-serif;text-align:center;
- padding:15px;margin:0;min-height:100vh
-}
-h1{color:#35ff8a;font-size:34px;text-shadow:0 0 18px #00ff77}
-h2,h3{color:#42ff9b}
-.panel{
- background:linear-gradient(145deg,#10291d,#030d09);
- border:1px solid #19e879;
- box-shadow:0 0 14px #00c96b;
- padding:16px;border-radius:18px;margin:14px auto;
- max-width:550px
-}
-input,select,button{
- box-sizing:border-box;width:100%;padding:14px;margin:7px 0;
- border:1px solid #22e878;border-radius:12px;font-size:16px
-}
-input,select{background:#061810;color:white}
-button{
- background:linear-gradient(135deg,#087b42,#00d878);
- color:white;font-weight:bold;cursor:pointer;
- box-shadow:0 0 10px #00c96b
-}
-button:active{transform:scale(.98)}
-#answer{white-space:pre-wrap;line-height:1.7}
-.brand{color:#ffd95a;font-size:22px;font-weight:bold;letter-spacing:2px}
-.tagline{color:#7dffb4;font-size:14px}
-@media(max-width:400px){h1{font-size:27px}.panel{padding:12px}}
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#020817;font-family:Arial}
+.screen{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);width:min(100vw,calc(100dvh * 1229 / 1280));aspect-ratio:1229/1280}
+.screen img{width:100%;height:100%;display:block;object-fit:contain}
+.hot{position:absolute;border:0;background:transparent;padding:0;z-index:5}
+.hot:active{background:#42baff22}
+.settings{left:3%;top:8%;width:19%;height:15%}
+.time{left:2%;top:31%;width:18%;height:13%}
+.date{left:2%;top:46%;width:18%;height:13%}
+.chrome{right:2%;top:27%;width:19%;height:14%}
+.youtube{right:2%;top:43%;width:19%;height:14%}
+.history{right:2%;top:59%;width:19%;height:14%}
+.mic{left:36%;top:58%;width:28%;height:22%;border-radius:50%}
+#tools{position:fixed;z-index:20;left:5%;right:5%;bottom:12px;max-height:65vh;overflow:auto;padding:13px;border:1px solid #d7ae55;border-radius:16px;background:#071a31;color:white;display:none;box-shadow:0 0 20px #168bff}
+#tools.open{display:block}
+#tools input,#tools select{width:100%;padding:12px;margin:5px 0;border-radius:9px;background:#061629;color:white;border:1px solid #48a9e8}
+#tools button{padding:10px;border-radius:9px;background:#1255a0;color:white;border:1px solid #d7ae55}
+#answer{white-space:pre-wrap;line-height:1.4;padding:8px}
+#closeTools{float:right}
 </style>
 </head>
 <body>
-<h1>🇵🇰 JARVIS AI</h1>
-<div class="brand">👑 WASIM KHAN 👑</div>
-<p class="tagline">POWERED BY AI • FOR A SMARTER PAKISTAN</p>
-<div class="panel">
-<h3>Groq API Key</h3>
-<input id="apiKey" type="password" placeholder="अपनी Groq API Key यहाँ डालें">
+<div class="screen">
+<img src="jarvis-main-design.png" alt="WASIM KHAN JARVIS AI full screen design">
+<button class="hot settings" aria-label="Settings" onclick="openTools()"></button>
+<button class="hot time" aria-label="Time" onclick="quick('time')"></button>
+<button class="hot date" aria-label="Date" onclick="quick('date')"></button>
+<button class="hot chrome" aria-label="Chrome" onclick="quick('chrome')"></button>
+<button class="hot youtube" aria-label="YouTube" onclick="quick('youtube')"></button>
+<button class="hot history" aria-label="History" onclick="showHistory()"></button>
+<button class="hot mic" aria-label="Microphone" onclick="startMic()"></button>
+</div>
+<section id="tools">
+<button id="closeTools" onclick="closeTools()">CLOSE ✕</button>
+<h3>WASIM KHAN JARVIS AI</h3>
+<input id="message" placeholder="Ask JARVIS anything...">
+<button onclick="sendMessage()">SEND ➤</button>
+<button onclick="speakAnswer()">SPEAK 🔊</button>
+<div id="answer">میں تیار ہوں۔</div>
+<hr>
+<h3>GROQ API SETTINGS</h3>
+<input id="apiKey" type="password" placeholder="Groq API Key">
 <button onclick="saveKey()">SAVE API KEY</button>
 <p id="keyStatus">API Key सेव करें</p>
-</div>
-<div class="panel">
-<h3>JARVIS Online</h3>
 <select id="language">
-<option value="ur-PK">اردو</option>
-<option value="hi-IN">हिन्दी</option>
+<option value="ur-PK">اردو — Urdu</option>
+<option value="hi-IN">हिन्दी — Hindi</option>
 <option value="en-US">English</option>
+<option value="ar-SA">العربية — Arabic</option>
+<option value="bn-BD">বাংলা — Bengali</option>
+<option value="pa-IN">ਪੰਜਾਬੀ — Punjabi</option>
+<option value="ps-PK">پښتو — Pashto</option>
+<option value="fa-IR">فارسی — Persian</option>
+<option value="tr-TR">Türkçe — Turkish</option>
+<option value="fr-FR">Français — French</option>
+<option value="de-DE">Deutsch — German</option>
+<option value="es-ES">Español — Spanish</option>
+<option value="pt-BR">Português — Portuguese</option>
+<option value="ru-RU">Русский — Russian</option>
+<option value="zh-CN">中文 — Chinese</option>
+<option value="ja-JP">日本語 — Japanese</option>
+<option value="ko-KR">한국어 — Korean</option>
+<option value="it-IT">Italiano — Italian</option>
+<option value="nl-NL">Nederlands — Dutch</option>
+<option value="pl-PL">Polski — Polish</option>
+<option value="uk-UA">Українська — Ukrainian</option>
+<option value="id-ID">Bahasa Indonesia</option>
+<option value="ms-MY">Bahasa Melayu — Malay</option>
+<option value="th-TH">ไทย — Thai</option>
+<option value="vi-VN">Tiếng Việt — Vietnamese</option>
+<option value="sw-KE">Kiswahili — Swahili</option>
+<option value="ta-IN">தமிழ் — Tamil</option>
+<option value="te-IN">తెలుగు — Telugu</option>
+<option value="mr-IN">मराठी — Marathi</option>
+<option value="gu-IN">ગુજરાતી — Gujarati</option>
+<option value="ne-NP">नेपाली — Nepali</option>
+<option value="si-LK">සිංහල — Sinhala</option>
+<option value="fil-PH">Filipino</option>
+<option value="ha-NG">Hausa</option>
+<option value="yo-NG">Yorùbá</option>
+<option value="am-ET">አማርኛ — Amharic</option>
+<option value="el-GR">Ελληνικά — Greek</option>
+<option value="he-IL">עברית — Hebrew</option>
+<option value="sv-SE">Svenska — Swedish</option>
+<option value="da-DK">Dansk — Danish</option>
+<option value="fi-FI">Suomi — Finnish</option>
+<option value="no-NO">Norsk — Norwegian</option>
+<option value="ro-RO">Română — Romanian</option>
+<option value="hu-HU">Magyar — Hungarian</option>
+<option value="cs-CZ">Čeština — Czech</option>
 </select>
 <select id="voiceChoice">
 <option value="default">Default Voice</option>
 <option value="male">Male Voice</option>
 <option value="female">Female Voice</option>
 </select>
-</div>
-<div class="panel">
-<input id="message" placeholder="اپنا سوال لکھیں...">
-<button onclick="sendMessage()">SEND</button>
-<button onclick="startMic()">🎤 MIC</button>
-<button onclick="speakAnswer()">🔊 SPEAK</button>
-</div>
-<div class="panel">
-<h3>JARVIS کا جواب</h3>
-<div id="answer">میں تیار ہوں۔</div>
-</div>
-<div class="panel">
-<button onclick="quick('time')">TIME</button>
-<button onclick="quick('date')">DATE</button>
-<button onclick="quick('google')">GOOGLE</button>
-<button onclick="quick('youtube')">YOUTUBE</button>
-<button onclick="showHistory()">CHAT HISTORY</button>
-</div>
+</section>
 <script>
 let lastAnswer = "";
 
@@ -168,6 +192,11 @@ function showHistory(){
 document.getElementById("message").addEventListener("keydown",e=>{
  if(e.key==="Enter")sendMessage();
 });
+</script>
+<script>
+function openTools(){document.getElementById('tools').classList.add('open')}
+function closeTools(){document.getElementById('tools').classList.remove('open')}
+document.getElementById("message").addEventListener("keydown",e=>{if(e.key==="Enter")sendMessage();});
 </script>
 </body>
 </html>

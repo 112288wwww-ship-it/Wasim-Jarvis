@@ -133,6 +133,26 @@ public class MainActivity extends Activity {
 
         @JavascriptInterface
         public String chat(String message, String language) {
+            if (message == null) message = "";
+            String question = message.toLowerCase(Locale.ROOT).trim();
+
+            if (question.contains("तुझे किसने बनाया") ||
+                question.contains("तुम्हें किसने बनाया") ||
+                question.contains("आपको किसने बनाया") ||
+                question.contains("کس نے بنایا") ||
+                question.contains("تمہیں کس نے بنایا") ||
+                question.contains("who created you") ||
+                question.contains("who made you") ||
+                question.contains("who built you")) {
+                String reply = "मुझे बस सैम बॉस ने बनाया।";
+                saveHistory(message, reply);
+                try {
+                    return new JSONObject().put("reply", reply).toString();
+                } catch (Exception e) {
+                    return "{\"reply\":\"मुझे बस सैम बॉस ने बनाया।\"}";
+                }
+            }
+
             String key = prefs.getString("groq_key", "");
 
             if (key.isEmpty()) {
@@ -142,14 +162,18 @@ public class MainActivity extends Activity {
             try {
                 JSONArray messages = new JSONArray();
 
-                String lang = "Urdu";
-                if ("hi-IN".equals(language)) lang = "Hindi";
-                if ("en-US".equals(language)) lang = "English";
+                String lang = Locale.forLanguageTag(
+                    language == null ? "ur-PK" : language
+                ).getDisplayLanguage(Locale.ENGLISH);
+                if (lang == null || lang.isEmpty()) lang = "the user's language";
 
                 JSONObject system = new JSONObject();
                 system.put("role", "system");
                 system.put("content",
-                    "You are JARVIS, a friendly and helpful assistant created by Wasim. Reply naturally in " + lang + ".");
+                    "You are JARVIS, a friendly, intelligent conversational assistant. " +
+                    "Reply naturally in " + lang + ". Understand the user's question and give a useful conversational answer. " +
+                    "If the user asks who created you, always say exactly: मुझे बस सैम बॉस ने बनाया। " +
+                    "Do not claim to control phone features unless the Android app provides that function.");
                 messages.put(system);
 
                 JSONArray history = new JSONArray(
