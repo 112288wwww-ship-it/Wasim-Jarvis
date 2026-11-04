@@ -2,6 +2,8 @@ package com.wasim.jarvis;
 
 import android.app.Activity;
 import android.os.Bundle;
+import android.speech.tts.TextToSpeech;
+import android.speech.tts.Voice;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.webkit.WebSettings;
@@ -23,11 +25,25 @@ import java.util.Locale;
 
 public class MainActivity extends Activity {
     WebView web;
+    private TextToSpeech textToSpeech;
+    private boolean ttsReady = false;
+    private String pendingSpeech = "";
+    private String pendingLanguage = "ur-PK";
+    private String pendingVoice = "default";
     SharedPreferences prefs;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
+        textToSpeech = new TextToSpeech(this, status -> {
+            if (status == TextToSpeech.SUCCESS) {
+                ttsReady = true;
+                if (!pendingSpeech.isEmpty()) {
+                    speakText(pendingSpeech, pendingLanguage, pendingVoice);
+                }
+            }
+        });
 
         StrictMode.setThreadPolicy(
             new StrictMode.ThreadPolicy.Builder().permitAll().build()
@@ -45,6 +61,44 @@ public class MainActivity extends Activity {
 
         setContentView(web);
         web.loadUrl("file:///android_asset/index.html");
+    }
+
+    private void speakText(String text, String language, String choice) {
+        if (text == null || text.trim().isEmpty()) return;
+
+        pendingSpeech = text;
+        pendingLanguage = language;
+        pendingVoice = choice;
+
+        if (!ttsReady || textToSpeech == null) return;
+
+        Locale locale = Locale.forLanguageTag(language);
+        textToSpeech.setLanguage(locale);
+
+        if (textToSpeech.getVoices() != null) {
+            for (Voice voice : textToSpeech.getVoices()) {
+                if (voice.getLocale().getLanguage().equals(locale.getLanguage())) {
+                    String name = voice.getName().toLowerCase(Locale.ROOT);
+                    boolean female = name.contains("female") || name.contains("woman");
+                    boolean male = name.contains("male") || name.contains("man");
+
+                    if ("female".equals(choice) && female) {
+                        textToSpeech.setVoice(voice);
+                        break;
+                    }
+                    if ("male".equals(choice) && male) {
+                        textToSpeech.setVoice(voice);
+                        break;
+                    }
+                    if ("default".equals(choice)) {
+                        textToSpeech.setVoice(voice);
+                        break;
+                    }
+                }
+            }
+        }
+
+        textToSpeech.speak(text, TextToSpeech.QUEUE_FLUSH, null, "jarvis-voice");
     }
 
     public class JarvisBridge {
@@ -198,6 +252,11 @@ public class MainActivity extends Activity {
         }
 
         @JavascriptInterface
+        public void speak(String text, String language, String choice) {
+            speakText(text, language, choice);
+        }
+
+        @JavascriptInterface
         public String history() {
             return prefs.getString("history", "[]");
         }
@@ -210,4 +269,13 @@ public class MainActivity extends Activity {
             } catch (Exception ignored) {}
         }
     }
+    @Override
+    protected void onDestroy() {
+        if (textToSpeech != null) {
+            textToSpeech.stop();
+            textToSpeech.shutdown();
+        }
+        super.onDestroy();
+    }
+
 }

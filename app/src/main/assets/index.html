@@ -110,17 +110,9 @@ function sendMessage(){
 
 function speakAnswer(){
  if(!lastAnswer)return;
- speechSynthesis.cancel();
- let v=new SpeechSynthesisUtterance(lastAnswer);
- v.lang=document.getElementById("language").value;
+ let language=document.getElementById("language").value;
  let choice=document.getElementById("voiceChoice").value;
- let voices=speechSynthesis.getVoices().filter(x=>x.lang.toLowerCase().startsWith(v.lang.slice(0,2).toLowerCase()));
- let pattern=choice==="female" ? /female|woman|zira|samantha|susan|heera/i : /male|man|david|mark|daniel|ravi/i;
- if(choice!=="default"){
-  let found=voices.find(x=>pattern.test(x.name));
-  if(found)v.voice=found;
- }
- speechSynthesis.speak(v);
+ Android.speak(lastAnswer, language, choice);
 }
 
 function startMic(){
