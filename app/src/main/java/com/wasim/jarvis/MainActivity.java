@@ -1,6 +1,7 @@
 package com.wasim.jarvis;
 
 import android.app.Activity;
+import android.widget.Toast;
 import android.os.Bundle;
 import android.speech.tts.TextToSpeech;
 import android.speech.tts.Voice;
@@ -65,40 +66,55 @@ public class MainActivity extends Activity {
 
     private void speakText(String text, String language, String choice) {
         if (text == null || text.trim().isEmpty()) return;
-
         pendingSpeech = text;
         pendingLanguage = language;
         pendingVoice = choice;
 
-        if (!ttsReady || textToSpeech == null) return;
+        runOnUiThread(() -> {
+            if (!ttsReady || textToSpeech == null) {
+                Toast.makeText(this, "आवाज़ का इंजन अभी तैयार नहीं है।", Toast.LENGTH_LONG).show();
+                return;
+            }
 
-        Locale locale = Locale.forLanguageTag(language);
-        textToSpeech.setLanguage(locale);
+            Locale locale = Locale.forLanguageTag(
+                language == null ? "en-US" : language
+            );
+            int result = textToSpeech.setLanguage(locale);
 
-        if (textToSpeech.getVoices() != null) {
-            for (Voice voice : textToSpeech.getVoices()) {
-                if (voice.getLocale().getLanguage().equals(locale.getLanguage())) {
-                    String name = voice.getName().toLowerCase(Locale.ROOT);
-                    boolean female = name.contains("female") || name.contains("woman");
-                    boolean male = name.contains("male") || name.contains("man");
+            if (result == TextToSpeech.LANG_MISSING_DATA ||
+                result == TextToSpeech.LANG_NOT_SUPPORTED) {
+                Toast.makeText(this, "यह भाषा उपलब्ध नहीं है, English आवाज़ आज़मा रहे हैं।", Toast.LENGTH_LONG).show();
+                result = textToSpeech.setLanguage(Locale.US);
+            }
 
-                    if ("female".equals(choice) && female) {
-                        textToSpeech.setVoice(voice);
-                        break;
-                    }
-                    if ("male".equals(choice) && male) {
-                        textToSpeech.setVoice(voice);
-                        break;
-                    }
-                    if ("default".equals(choice)) {
-                        textToSpeech.setVoice(voice);
-                        break;
+            if (result == TextToSpeech.LANG_MISSING_DATA ||
+                result == TextToSpeech.LANG_NOT_SUPPORTED) {
+                Toast.makeText(this, "मोबाइल में आवाज़ का डेटा उपलब्ध नहीं है।", Toast.LENGTH_LONG).show();
+                return;
+            }
+
+            if (!"default".equals(choice) && textToSpeech.getVoices() != null) {
+                for (Voice voice : textToSpeech.getVoices()) {
+                    if (voice.getLocale().getLanguage().equals(locale.getLanguage())) {
+                        String name = voice.getName().toLowerCase(Locale.ROOT);
+                        boolean match = "female".equals(choice)
+                            ? name.contains("female") || name.contains("woman")
+                            : name.contains("male") || name.contains("man");
+                        if (match) {
+                            textToSpeech.setVoice(voice);
+                            break;
+                        }
                     }
                 }
             }
-        }
 
-        textToSpeech.speak(text, TextToSpeech.QUEUE_FLUSH, null, "jarvis-voice");
+            int spoken = textToSpeech.speak(
+                text, TextToSpeech.QUEUE_FLUSH, null, "jarvis-voice"
+            );
+            if (spoken == TextToSpeech.ERROR) {
+                Toast.makeText(this, "आवाज़ चलाने में गलती हुई।", Toast.LENGTH_LONG).show();
+            }
+        });
     }
 
     public class JarvisBridge {
