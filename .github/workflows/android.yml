@@ -1,19 +1,18 @@
-name: Build WASIM KHAN JARVIS APK
+name: Build JARVIS APK
 
 on:
-  workflow_dispatch:
   push:
-    branches:
-      - main
+    branches: [main]
+  workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Get project
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install Java
+      - name: Set up Java
         uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -22,10 +21,10 @@ jobs:
       - name: Build APK
         run: |
           chmod +x gradlew
-          ./gradlew --no-daemon assembleDebug
+          ./gradlew :app:assembleDebug
 
-      - name: Save APK
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: WASIM-KHAN-JARVIS-APK
-          path: app/build/outputs/apk/debug/app-debug.apk
+          name: Wasim-Jarvis-Debug-APK
+          path: app/build/outputs/apk/debug/*.apk
