@@ -4,3 +4,7 @@ local.properties
 .env
 *.pyc
 __pycache__/
+
+*.backup*
+*.before-*
+jarvis-check.js

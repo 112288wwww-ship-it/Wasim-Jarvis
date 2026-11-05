@@ -121,11 +121,35 @@ body.speaking .mouth-motion{opacity:.8;animation:mouthTalk .22s ease-in-out infi
 <option value="male">Male Voice</option>
 <option value="female" selected>Female Voice</option>
 </select>
+<label>फोन की वास्तविक आवाज़ चुनें</label>
+<select id="nativeVoiceChoice">
+<option value="">Male/Female विकल्प इस्तेमाल करें</option>
+</select>
+<button onclick="loadNativeVoices()">↻ REFRESH VOICES</button>
+<div id="voiceStudio" style="margin:12px;padding:12px;border:1px solid #48a9e8;border-radius:12px;background:#061629;color:white">
+<h3>🎙️ JARVIS VOICE STUDIO</h3>
+<label>Voice Type</label>
+<p id="voiceTypeLabel">ऊपर दिए Voice Type विकल्प से आवाज़ चुनें।</p>
+<label>Voice Speed: <span id="speedValue">1</span></label>
+<input id="voiceSpeed" type="range" min="0.7" max="1.4" step="0.1" value="1">
+<label>Voice Pitch: <span id="pitchValue">1</span></label>
+<input id="voicePitch" type="range" min="0.7" max="1.4" step="0.1" value="1">
+<button onclick="previewVoice()">▶ PREVIEW VOICE</button>
+<button onclick="toggleVoiceFavorite()">☆ FAVORITE</button>
+<p id="voiceStatus">Offline Android Voice</p>
+</div>
 </section>
 <script>
 let lastAnswer = "";
 
 function quick(x){
+ if(x==="time" || x==="date"){
+  let now=new Date();
+  lastAnswer=x==="time" ? "अभी समय है: "+now.toLocaleTimeString() : "आज की तारीख: "+now.toLocaleDateString();
+  document.getElementById("answer").textContent=lastAnswer;
+  speakAnswer();
+  return;
+ }
  document.getElementById("message").value=x;
  sendMessage();
 }
@@ -133,8 +157,12 @@ function quick(x){
 function saveKey(){
  let key=document.getElementById("apiKey").value.trim();
  if(!key){alert("पहले API Key डालें");return;}
- let ok=Android.saveApiKey(key);
- document.getElementById("keyStatus").textContent=ok?"API Key सेव हो गई।":"सेव नहीं हुई।";
+ if(window.Android && typeof Android.saveApiKey==="function"){
+  let ok=Android.saveApiKey(key);
+  document.getElementById("keyStatus").textContent=ok?"API Key सेव हो गई।":"सेव नहीं हुई।";
+ }else{
+  document.getElementById("keyStatus").textContent="Chrome में Key सेव नहीं होगी। इसे Termux Server में सेट करें।";
+ }
  document.getElementById("apiKey").value="";
 }
 
@@ -165,11 +193,29 @@ function sendMessage(){
  for(let app of apps){
   if(app.words.some(word=>command.includes(word))){
    try{
-    lastAnswer=Android.openApp(app.name);
-    document.getElementById("answer").textContent=lastAnswer;
-    Android.speak(lastAnswer,document.getElementById("language").value,"default");
+    if(window.Android && typeof Android.openApp==="function"){
+     lastAnswer=Android.openApp(app.name);
+     document.getElementById("answer").textContent=lastAnswer;
+     if(typeof Android.speak==="function"){
+      Android.speak(lastAnswer,document.getElementById("language").value,"default");
+     }
+    }else{
+     let urls={
+      whatsapp:"https://web.whatsapp.com/",
+      youtube:"https://www.youtube.com/",
+      chrome:"https://www.google.com/"
+     };
+     if(urls[app.name]){
+      lastAnswer=app.name==="chrome"?"Google खोल रहा हूँ।":app.name==="youtube"?"YouTube खोल रहा हूँ।":"WhatsApp Web खोल रहा हूँ।";
+      document.getElementById("answer").textContent=lastAnswer;
+      window.open(urls[app.name],"_blank","noopener");
+     }else{
+      lastAnswer="यह सुविधा केवल Android ऐप में उपलब्ध है।";
+      document.getElementById("answer").textContent=lastAnswer;
+     }
+    }
    }catch(e){
-    document.getElementById("answer").textContent="ऐप खोलने में समस्या आई।";
+    document.getElementById("answer").textContent="ऐप खोलने में समस्या आई: "+e.message;
    }
    document.getElementById("message").value="";
    return;
@@ -216,22 +262,118 @@ function sendMessage(){
 }
 
 
+function getVoiceSettings(){
+ return {
+  speed: Number(document.getElementById("voiceSpeed").value),
+  pitch: Number(document.getElementById("voicePitch").value)
+ };
+}
+
+function updateVoiceSettings(){
+ let v=getVoiceSettings();
+ document.getElementById("speedValue").textContent=v.speed.toFixed(1);
+ document.getElementById("pitchValue").textContent=v.pitch.toFixed(1);
+ localStorage.setItem("jarvisVoiceSpeed",v.speed);
+ localStorage.setItem("jarvisVoicePitch",v.pitch);
+}
+
+function loadNativeVoices(retry=0){
+ let select=document.getElementById("nativeVoiceChoice");
+ let saved=localStorage.getItem("jarvisNativeVoice")||"";
+ select.innerHTML='<option value="">Male/Female विकल्प इस्तेमाल करें</option>';
+ try{
+  if(!window.Android || typeof Android.getAvailableVoices!=="function"){
+   document.getElementById("voiceStatus").textContent="Native Voice API उपलब्ध नहीं";
+   return;
+  }
+  let voices=JSON.parse(Android.getAvailableVoices()||"[]");
+  voices.sort((a,b)=>(a.language+a.name).localeCompare(b.language+b.name));
+  if(!voices.length && retry<5){
+   document.getElementById("voiceStatus").textContent="फोन का Voice Engine तैयार हो रहा है...";
+   setTimeout(()=>loadNativeVoices(retry+1),1500);
+   return;
+  }
+  voices.forEach(voice=>{
+   let option=document.createElement("option");
+   option.value=voice.name;
+   option.textContent=voice.name+" — "+voice.language+(voice.networkRequired?" (Online)":" (Offline)");
+   select.appendChild(option);
+  });
+  if(saved && [...select.options].some(o=>o.value===saved))select.value=saved;
+  document.getElementById("voiceStatus").textContent=
+   voices.length ? voices.length+" फोन की आवाज़ें मिलीं" : "आवाज़ें नहीं मिलीं। Refresh दबाएँ।";
+ }catch(e){
+  document.getElementById("voiceStatus").textContent="Voice List पढ़ने में समस्या";
+ }
+}
+document.getElementById("nativeVoiceChoice").addEventListener("change",function(){
+ localStorage.setItem("jarvisNativeVoice",this.value);
+ document.getElementById("voiceStatus").textContent=this.value?
+  "चुनी गई आवाज़: "+this.value:"Male/Female विकल्प सक्रिय";
+});
+
+function speakNative(text,language,choice,v){
+ let voiceName=document.getElementById("nativeVoiceChoice").value;
+ if(window.Android && typeof Android.speakWithVoice==="function"){
+  Android.speakWithVoice(text,language,choice,v.speed,v.pitch,voiceName);
+ }else if(window.Android && typeof Android.speakAdvanced==="function"){
+  Android.speakAdvanced(text,language,choice,v.speed,v.pitch);
+ }
+}
+
+function previewVoice(){
+ let language=document.getElementById("language").value;
+ let choice=document.getElementById("voiceChoice").value;
+ let v=getVoiceSettings();
+ let sample="नमस्ते वसीम बॉस, मैं आपकी JARVIS हूँ।";
+ document.getElementById("voiceStatus").textContent="आवाज़ का नमूना चल रहा है...";
+ if(window.Android && typeof Android.speakAdvanced==="function"){
+  speakNative(sample,language,choice==="default"?"female":choice,v);
+ }else if("speechSynthesis" in window){
+  let u=new SpeechSynthesisUtterance(sample);
+  u.lang=language;u.rate=v.speed;u.pitch=v.pitch;
+  u.onend=()=>document.getElementById("voiceStatus").textContent="Preview पूरा हुआ";
+  window.speechSynthesis.cancel();
+  window.speechSynthesis.speak(u);
+ }else{
+  document.getElementById("voiceStatus").textContent="आवाज़ उपलब्ध नहीं है";
+ }
+}
+
+function toggleVoiceFavorite(){
+ let choice=document.getElementById("voiceChoice").value;
+ let saved=localStorage.getItem("jarvisFavoriteVoice");
+ let button=document.querySelector("#voiceStudio button[onclick='toggleVoiceFavorite()']");
+ if(saved===choice){
+  localStorage.removeItem("jarvisFavoriteVoice");
+  button.textContent="☆ FAVORITE";
+  document.getElementById("voiceStatus").textContent="Favorite हटाया गया";
+ }else{
+  localStorage.setItem("jarvisFavoriteVoice",choice);
+  button.textContent="★ FAVORITE SAVED";
+  document.getElementById("voiceStatus").textContent="पसंदीदा आवाज़ सेव हो गई";
+ }
+}
+
 function speakAnswer(){
  if(!lastAnswer)return;
  let language=document.getElementById("language").value;
  let choice=document.getElementById("voiceChoice").value;
+ let v=getVoiceSettings();
  document.body.classList.remove("listening");
  document.body.classList.add("speaking");
- if(window.Android && typeof Android.speak==="function"){
-  Android.speak(lastAnswer,language,choice==="default"?"female":choice);
+ if(window.Android && typeof Android.speakAdvanced==="function"){
+  speakNative(lastAnswer,language,choice==="default"?"female":choice,v);
   setTimeout(()=>document.body.classList.remove("speaking"),Math.max(2200,lastAnswer.length*75));
  }else if("speechSynthesis" in window){
   window.speechSynthesis.cancel();
   let utterance=new SpeechSynthesisUtterance(lastAnswer);
   utterance.lang=language;
+  utterance.rate=v.speed;
+  utterance.pitch=v.pitch;
   let voices=window.speechSynthesis.getVoices();
   let female=voices.find(v=>v.lang.toLowerCase().startsWith(language.slice(0,2).toLowerCase()) &&
-    /female|woman|zira|samantha|susan|google.*female/i.test(v.name));
+   /female|woman|zira|samantha|susan|google.*female/i.test(v.name));
   if(female)utterance.voice=female;
   utterance.onstart=()=>document.body.classList.add("speaking");
   utterance.onend=()=>document.body.classList.remove("speaking");
@@ -242,34 +384,82 @@ function speakAnswer(){
  }
 }
 
-function startMic(){
- let R=window.SpeechRecognition||window.webkitSpeechRecognition;
- if(!R){
-  document.getElementById("answer").textContent="مائیک دستیاب نہیں۔";
-  return;
+loadNativeVoices();
+setTimeout(loadNativeVoices,2000);
+document.getElementById("voiceSpeed").addEventListener("input",updateVoiceSettings);
+document.getElementById("voicePitch").addEventListener("input",updateVoiceSettings);
+(function loadVoiceSettings(){
+ let speed=localStorage.getItem("jarvisVoiceSpeed");
+ let pitch=localStorage.getItem("jarvisVoicePitch");
+ if(speed)document.getElementById("voiceSpeed").value=speed;
+ if(pitch)document.getElementById("voicePitch").value=pitch;
+ let favorite=localStorage.getItem("jarvisFavoriteVoice");
+ if(favorite){
+  document.getElementById("voiceChoice").value=favorite;
+  document.querySelector("#voiceStudio button[onclick='toggleVoiceFavorite()']").textContent="★ FAVORITE SAVED";
  }
- let rec=new R();
- rec.lang=document.getElementById("language").value;
- rec.onstart=()=>{
+ updateVoiceSettings();
+})();
+
+function startMic(){
+ if(window.Android && typeof Android.startNativeSpeech==="function"){
   document.body.classList.remove("speaking");
   document.body.classList.add("listening");
-  document.getElementById("answer").textContent="JARVIS سن رہی ہے...";
+  document.getElementById("answer").textContent="Microphone शुरू हो रहा है...";
+  try{
+   Android.startNativeSpeech(document.getElementById("language").value);
+  }catch(e){
+   document.body.classList.remove("listening");
+   document.getElementById("answer").textContent="Microphone शुरू नहीं हुआ: "+e.message;
+  }
+  return;
+ }
+ const SpeechRecognition=window.SpeechRecognition||window.webkitSpeechRecognition;
+ if(!SpeechRecognition){
+  document.getElementById("answer").textContent="इस Chrome में Speech Recognition उपलब्ध नहीं है। Chrome अपडेट करें।";
+  return;
+ }
+ let recognition=new SpeechRecognition();
+ recognition.lang=document.getElementById("language").value;
+ recognition.continuous=false;
+ recognition.interimResults=false;
+ recognition.onstart=()=>{
+  document.body.classList.add("listening");
+  document.getElementById("answer").textContent="JARVIS सुन रही है...";
  };
- rec.onresult=e=>{
-  document.getElementById("message").value=e.results[0][0].transcript;
+ recognition.onresult=(event)=>{
+  let spoken=event.results[0][0].transcript;
+  document.getElementById("message").value=spoken;
+  document.body.classList.remove("listening");
   sendMessage();
  };
- rec.onerror=e=>{
+ recognition.onerror=(event)=>{
   document.body.classList.remove("listening");
-  document.getElementById("answer").textContent="مائیک کی خرابی: "+e.error;
+  document.getElementById("answer").textContent="Microphone समस्या: "+event.error+"। Chrome में Microphone अनुमति जाँचें।";
  };
- rec.onend=()=>document.body.classList.remove("listening");
- try{rec.start();}catch(e){
+ recognition.onend=()=>{
   document.body.classList.remove("listening");
-  document.getElementById("answer").textContent="مائیک شروع نہیں ہو سکا۔ دوبارہ کوشش کریں۔";
+ };
+ try{
+  recognition.start();
+ }catch(e){
+  document.body.classList.remove("listening");
+  document.getElementById("answer").textContent="Microphone शुरू नहीं हुआ: "+e.message;
  }
 }
 
+window.onNativeSpeechStatus=function(message){
+ document.getElementById("answer").textContent=message;
+ if(message!=="JARVIS सुन रही है..."){
+  document.body.classList.remove("listening");
+ }
+};
+
+window.onNativeSpeechResult=function(text){
+ document.body.classList.remove("listening");
+ document.getElementById("message").value=text;
+ sendMessage();
+};
 
 function showHistory(){
  try{
@@ -289,7 +479,7 @@ document.getElementById("message").addEventListener("keydown",e=>{
 <script>
 function openTools(){document.getElementById('tools').classList.add('open')}
 function closeTools(){document.getElementById('tools').classList.remove('open')}
-document.getElementById("message").addEventListener("keydown",e=>{if(e.key==="Enter")sendMessage();});
+
 </script>
 </body>
 </html>
