@@ -18,6 +18,23 @@ html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#020817;fon
 .youtube{right:2%;top:43%;width:19%;height:14%}
 .history{right:2%;top:59%;width:19%;height:14%}
 .mic{left:36%;top:58%;width:28%;height:22%;border-radius:50%}
+
+/* JARVIS voice animations */
+.voice-bars{position:absolute;left:29%;top:81%;width:42%;height:7%;z-index:4;display:flex;align-items:center;justify-content:space-around;opacity:.18;pointer-events:none}
+.voice-bars span{width:3px;height:18%;border-radius:8px;background:#43eaff;box-shadow:0 0 8px #00cfff}
+body.listening .voice-bars,body.speaking .voice-bars{opacity:1}
+body.listening .voice-bars span,body.speaking .voice-bars span{animation:voiceWave .65s ease-in-out infinite alternate}
+.voice-bars span:nth-child(2n){animation-delay:.2s}
+.voice-bars span:nth-child(3n){animation-delay:.4s}
+@keyframes voiceWave{from{height:15%}to{height:100%}}
+.eye-lid{position:absolute;z-index:3;height:1.1%;width:5.2%;border-radius:50%;background:rgba(8,18,35,.82);opacity:0;pointer-events:none;animation:eyeBlink 5s infinite}
+.eye-lid.one{left:44%;top:20.7%}
+.eye-lid.two{left:56.2%;top:20.7%;animation-delay:.08s}
+@keyframes eyeBlink{0%,92%,96%,100%{opacity:0;transform:scaleY(.1)}94%{opacity:.9;transform:scaleY(1)}}
+.mouth-motion{position:absolute;z-index:3;left:49.5%;top:28.7%;width:6.5%;height:1.5%;border-radius:50%;background:rgba(100,0,25,.18);opacity:0;pointer-events:none}
+body.speaking .mouth-motion{opacity:.8;animation:mouthTalk .22s ease-in-out infinite alternate}
+@keyframes mouthTalk{from{transform:scaleY(.35)}to{transform:scaleY(1.5)}}
+
 #tools{position:fixed;z-index:20;left:5%;right:5%;bottom:12px;max-height:65vh;overflow:auto;padding:13px;border:1px solid #d7ae55;border-radius:16px;background:#071a31;color:white;display:none;box-shadow:0 0 20px #168bff}
 #tools.open{display:block}
 #tools input,#tools select{width:100%;padding:12px;margin:5px 0;border-radius:9px;background:#061629;color:white;border:1px solid #48a9e8}
@@ -36,6 +53,9 @@ html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#020817;fon
 <button class="hot youtube" aria-label="YouTube" onclick="quick('youtube')"></button>
 <button class="hot history" aria-label="History" onclick="showHistory()"></button>
 <button class="hot mic" aria-label="Microphone" onclick="startMic()"></button>
+<div class="eye-lid one"></div><div class="eye-lid two"></div>
+<div class="mouth-motion"></div>
+<div class="voice-bars" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
 </div>
 <section id="tools">
 <button id="closeTools" onclick="closeTools()">CLOSE ✕</button>
@@ -99,7 +119,7 @@ html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#020817;fon
 <select id="voiceChoice">
 <option value="default">Default Voice</option>
 <option value="male">Male Voice</option>
-<option value="female">Female Voice</option>
+<option value="female" selected>Female Voice</option>
 </select>
 </section>
 <script>
@@ -117,6 +137,17 @@ function saveKey(){
  document.getElementById("keyStatus").textContent=ok?"API Key सेव हो गई।":"सेव नहीं हुई।";
  document.getElementById("apiKey").value="";
 }
+
+window.onJarvisReply = function(raw){
+ try{
+  let d=JSON.parse(raw);
+  lastAnswer=d.reply||"AI से जवाब नहीं मिला।";
+  document.getElementById("answer").textContent=lastAnswer;
+  if(!d.needsKey)setTimeout(speakAnswer,300);
+ }catch(e){
+  document.getElementById("answer").textContent="AI जवाब पढ़ने में समस्या: "+e.message;
+ }
+};
 
 function sendMessage(){
  let message=document.getElementById("message").value.trim();
@@ -147,6 +178,12 @@ function sendMessage(){
 
  let language=document.getElementById("language").value;
  try{
+  if(window.Android && typeof Android.chatAsync==="function"){
+   document.getElementById("answer").textContent="JARVIS जवाब तैयार कर रही है...";
+   Android.chatAsync(message,language);
+   document.getElementById("message").value="";
+   return;
+  }
   if(window.Android && typeof Android.chat==="function"){
    let d=JSON.parse(Android.chat(message,language));
    lastAnswer=d.reply;
@@ -178,17 +215,30 @@ function sendMessage(){
  }
 }
 
+
 function speakAnswer(){
  if(!lastAnswer)return;
  let language=document.getElementById("language").value;
  let choice=document.getElementById("voiceChoice").value;
+ document.body.classList.remove("listening");
+ document.body.classList.add("speaking");
  if(window.Android && typeof Android.speak==="function"){
-  Android.speak(lastAnswer,language,choice);
+  Android.speak(lastAnswer,language,choice==="default"?"female":choice);
+  setTimeout(()=>document.body.classList.remove("speaking"),Math.max(2200,lastAnswer.length*75));
  }else if("speechSynthesis" in window){
   window.speechSynthesis.cancel();
   let utterance=new SpeechSynthesisUtterance(lastAnswer);
   utterance.lang=language;
+  let voices=window.speechSynthesis.getVoices();
+  let female=voices.find(v=>v.lang.toLowerCase().startsWith(language.slice(0,2).toLowerCase()) &&
+    /female|woman|zira|samantha|susan|google.*female/i.test(v.name));
+  if(female)utterance.voice=female;
+  utterance.onstart=()=>document.body.classList.add("speaking");
+  utterance.onend=()=>document.body.classList.remove("speaking");
+  utterance.onerror=()=>document.body.classList.remove("speaking");
   window.speechSynthesis.speak(utterance);
+ }else{
+  document.body.classList.remove("speaking");
  }
 }
 
@@ -200,12 +250,26 @@ function startMic(){
  }
  let rec=new R();
  rec.lang=document.getElementById("language").value;
+ rec.onstart=()=>{
+  document.body.classList.remove("speaking");
+  document.body.classList.add("listening");
+  document.getElementById("answer").textContent="JARVIS سن رہی ہے...";
+ };
  rec.onresult=e=>{
   document.getElementById("message").value=e.results[0][0].transcript;
   sendMessage();
  };
- rec.start();
+ rec.onerror=e=>{
+  document.body.classList.remove("listening");
+  document.getElementById("answer").textContent="مائیک کی خرابی: "+e.error;
+ };
+ rec.onend=()=>document.body.classList.remove("listening");
+ try{rec.start();}catch(e){
+  document.body.classList.remove("listening");
+  document.getElementById("answer").textContent="مائیک شروع نہیں ہو سکا۔ دوبارہ کوشش کریں۔";
+ }
 }
+
 
 function showHistory(){
  try{

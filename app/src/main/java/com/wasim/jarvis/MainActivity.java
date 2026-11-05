@@ -23,6 +23,8 @@ import java.io.InputStreamReader;
 import java.util.Date;
 import java.text.SimpleDateFormat;
 import java.util.Locale;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class MainActivity extends Activity {
     WebView web;
@@ -32,6 +34,7 @@ public class MainActivity extends Activity {
     private String pendingLanguage = "ur-PK";
     private String pendingVoice = "default";
     SharedPreferences prefs;
+    private final ExecutorService chatExecutor = Executors.newSingleThreadExecutor();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -117,7 +120,24 @@ public class MainActivity extends Activity {
         });
     }
 
+
     public class JarvisBridge {
+
+        @JavascriptInterface
+        public void chatAsync(String message, String language) {
+            chatExecutor.execute(() -> {
+                String result = chat(message, language);
+                runOnUiThread(() -> {
+                    if (web != null) {
+                        web.evaluateJavascript(
+                            "window.onJarvisReply(" + JSONObject.quote(result) + ")",
+                            null
+                        );
+                    }
+                });
+            });
+        }
+
         @JavascriptInterface
         public boolean saveApiKey(String key) {
             if (key == null || key.trim().isEmpty()) return false;
@@ -136,6 +156,19 @@ public class MainActivity extends Activity {
             if (message == null) message = "";
             String question = message.toLowerCase(Locale.ROOT).trim();
 
+            if (question.contains("वसीम बॉस") ||
+                question.contains("وسیم باس") ||
+                question.contains("wasim boss")) {
+                String reply = "जी वसीम बॉस।";
+                saveHistory(message, reply);
+                try {
+                    return new JSONObject().put("reply", reply).toString();
+                } catch (Exception e) {
+                    return "{\"reply\":\"जी वसीम बॉस।\"}";
+                }
+            }
+
+
             if (question.contains("तुझे किसने बनाया") ||
                 question.contains("तुम्हें किसने बनाया") ||
                 question.contains("आपको किसने बनाया") ||
@@ -144,12 +177,12 @@ public class MainActivity extends Activity {
                 question.contains("who created you") ||
                 question.contains("who made you") ||
                 question.contains("who built you")) {
-                String reply = "मुझे बस सैम बॉस ने बनाया।";
+                String reply = "मुझे वसीम बॉस ने बनाया है।";
                 saveHistory(message, reply);
                 try {
                     return new JSONObject().put("reply", reply).toString();
                 } catch (Exception e) {
-                    return "{\"reply\":\"मुझे बस सैम बॉस ने बनाया।\"}";
+                    return "{\"reply\":\"मुझे वसीम बॉस ने बनाया है।\"}";
                 }
             }
 
@@ -172,7 +205,7 @@ public class MainActivity extends Activity {
                 system.put("content",
                     "You are JARVIS, a friendly, intelligent conversational assistant. " +
                     "Reply naturally in " + lang + ". Understand the user's question and give a useful conversational answer. " +
-                    "If the user asks who created you, always say exactly: मुझे बस सैम बॉस ने बनाया। " +
+                    "If the user asks who created you, always say exactly: मुझे वसीम बॉस ने बनाया है। " +
                     "Do not claim to control phone features unless the Android app provides that function.");
                 messages.put(system);
 
@@ -355,6 +388,7 @@ public class MainActivity extends Activity {
             textToSpeech.stop();
             textToSpeech.shutdown();
         }
+        chatExecutor.shutdownNow();
         super.onDestroy();
     }
 
