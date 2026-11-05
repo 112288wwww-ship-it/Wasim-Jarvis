@@ -33,7 +33,6 @@ import java.util.ArrayList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-package com.wasim.jarvis;
 
 public class MainActivity extends Activity {
     private static final int MIC_PERMISSION_REQUEST = 701;
